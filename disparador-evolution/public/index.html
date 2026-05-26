@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Disparador Evolution Go</title>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root{
+      --bg:#0f172a;
+      --panel:#111827;
+      --muted:#94a3b8;
+      --line:#1f2937;
+      --card:#0b1220;
+      --brand:#22c55e;
+      --brand-2:#16a34a;
+      --danger:#ef4444;
+      --warn:#f59e0b;
+      --text:#e5e7eb;
+      --blue:#3b82f6;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:linear-gradient(180deg,#0b1120 0%,#111827 100%);
+      color:var(--text);
+    }
+    .wrap{
+      max-width:1180px;
+      margin:0 auto;
+      padding:24px;
+    }
+    .topbar{
+      display:flex;
+      justify-content:space-between;
+      gap:16px;
+      align-items:center;
+      margin-bottom:20px;
+    }
+    .title h1{
+      margin:0;
+      font-size:28px;
+    }
+    .title p{
+      margin:6px 0 0;
+      color:var(--muted);
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid #1f2937;
+      background:#0b1220;
+      padding:10px 14px;
+      border-radius:999px;
+      color:var(--muted);
+      font-size:14px;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:var(--danger);
+    }
+    .dot.ok{background:var(--brand)}
+    .stepper{
+      display:grid;
+      grid-template-columns:repeat(5,1fr);
+      gap:10px;
+      margin:20px 0 24px;
+    }
+    .step{
+      background:rgba(15,23,42,.65);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:14px;
+      color:var(--muted);
+      cursor:pointer;
+      text-align:center;
+      font-size:14px;
+      transition:.2s;
+    }
+    .step.active{
+      border-color:var(--brand);
+      color:#fff;
+      box-shadow:0 0 0 1px rgba(34,197,94,.15) inset;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:1.2fr .8fr;
+      gap:18px;
+    }
+    .card{
+      background:rgba(11,18,32,.88);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:18px;
+      backdrop-filter: blur(8px);
+      margin-bottom:18px;
+    }
+    .card h2,.card h3{
+      margin:0 0 12px;
+      font-size:18px;
+    }
+    .muted{
+      color:var(--muted);
+      font-size:14px;
+    }
+    .row{
+      display:grid;
+      grid-template-columns:repeat(12,1fr);
+      gap:12px;
+      margin-bottom:12px;
+    }
+    .col-12{grid-column:span 12}
+    .col-8{grid-column:span 8}
+    .col-6{grid-column:span 6}
+    .col-4{grid-column:span 4}
+    .col-3{grid-column:span 3}
+    .col-2{grid-column:span 2}
+    label{
+      display:block;
+      margin-bottom:6px;
+      font-size:13px;
+      color:#cbd5e1;
+    }
+    input,select,textarea,button{
+      width:100%;
+      border-radius:12px;
+      border:1px solid #263244;
+      background:#0f172a;
+      color:#fff;
+      padding:12px 14px;
+      font-size:14px;
+    }
+    textarea{min-height:160px; resize:vertical}
+    button{
+      cursor:pointer;
+      background:#182235;
+      transition:.2s;
+    }
+    button:hover{filter:brightness(1.08)}
+    .btn-brand{background:linear-gradient(180deg,var(--brand),var(--brand-2)); color:#052e16; border:none; font-weight:700}
+    .btn-blue{background:#1d4ed8; border:none}
+    .btn-danger{background:#991b1b; border:none}
+    .btn-warn{background:#92400e; border:none}
+    .btn-ghost{background:#0f172a}
+    .btn-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .btn-row > button{
+      flex:1;
+      min-width:160px;
+    }
+    .hidden{display:none}
+    .status{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:13px;
+      background:#0f172a;
+      border:1px solid var(--line);
+    }
+    .status.ok{color:#86efac;border-color:#166534}
+    .status.bad{color:#fca5a5;border-color:#7f1d1d}
+    .preview{
+      background:#0f172a;
+      border:1px dashed #334155;
+      border-radius:14px;
+      padding:14px;
+      white-space:pre-wrap;
+      min-height:140px;
+    }
+    .chips{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+    .chip{
+      padding:8px 10px;
+      border-radius:999px;
+      background:#132033;
+      border:1px solid #22304a;
+      color:#cbd5e1;
+      font-size:12px;
+      cursor:pointer;
+    }
+    .table-wrap{
+      overflow:auto;
+      border:1px solid var(--line);
+      border-radius:14px;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      min-width:700px;
+    }
+    th,td{
+      padding:10px 12px;
+      border-bottom:1px solid #1e293b;
+      text-align:left;
+      font-size:13px;
+      vertical-align:top;
+    }
+    th{
+      background:#0f172a;
+      color:#cbd5e1;
+      position:sticky;
+      top:0;
+    }
+    .progress{
+      height:14px;
+      background:#0f172a;
+      border-radius:999px;
+      overflow:hidden;
+      border:1px solid var(--line);
+    }
+    .bar{
+      height:100%;
+      width:0%;
+      background:linear-gradient(90deg,#22c55e,#84cc16);
+      transition:.35s;
+    }
+    .log{
+      background:#020617;
+      border:1px solid #1e293b;
+      border-radius:14px;
+      padding:12px;
+      height:300px;
+      overflow:auto;
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+      font-size:12px;
+      white-space:pre-wrap;
+    }
+    .small{
+      font-size:12px;
+      color:var(--muted);
+    }
+    .section{display:none}
+    .section.active{display:block}
+    img.qr{
+      max-width:280px;
+      width:100%;
+      border-radius:14px;
+      border:1px solid #334155;
+      background:#fff;
+      padding:8px;
+    }
+    @media (max-width: 960px){
+      .grid{grid-template-columns:1fr}
+      .stepper{grid-template-columns:1fr 1fr}
+      .col-8,.col-6,.col-4,.col-3,.col-2{grid-column:span 12}
+      .topbar{flex-direction:column; align-items:flex-start}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title">
+        <h1>Disparador Evolution Go</h1>
+        <p>Painel para conectar instância, importar contatos e disparar mensagens.</p>
+      </div>
+      <div class="badge">
+        <span id="apiDot" class="dot"></span>
+        <span id="apiStatus">API local verificando...</span>
+      </div>
+    </div>
+
+    <div class="stepper">
+      <div class="step active" data-step="1">1. Instância</div>
+      <div class="step" data-step="2">2. Conexão</div>
+      <div class="step" data-step="3">3. Contatos</div>
+      <div class="step" data-step="4">4. Mensagem</div>
+      <div class="step" data-step="5">5. Disparo</div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <section class="section active" id="step-1">
+          <div class="card">
+            <h2>Instância</h2>
+            <p class="muted">Carregue a lista de instâncias da Evolution Go e selecione a instância que vai disparar.</p>
+
+            <div class="row">
+              <div class="col-8">
+                <label>Instância</label>
+                <select id="instanceSelect">
+                  <option value="">Selecione uma instância</option>
+                </select>
+              </div>
+              <div class="col-4">
+                <label>&nbsp;</label>
+                <button id="loadInstancesBtn">↺ Carregar instâncias</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-8">
+                <label>Token da instância</label>
+                <input id="instanceToken" placeholder="Cole aqui o token da instância" />
+              </div>
+              <div class="col-4">
+                <label>&nbsp;</label>
+                <button id="saveTokenBtn">💾 Salvar token</button>
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button id="checkStatusBtn" class="btn-blue">Validar token / status</button>
+              <button id="goStep2Btn" class="btn-brand">Avançar para conexão</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Criar nova instância</h3>
+            <div class="row">
+              <div class="col-6">
+                <label>Nome da instância</label>
+                <input id="newInstanceName" placeholder="ex: vendas" />
+              </div>
+              <div class="col-6">
+                <label>Token personalizado (opcional)</label>
+                <input id="newInstanceToken" placeholder="opcional" />
+              </div>
+            </div>
+            <button id="createInstanceBtn" class="btn-brand">Criar instância</button>
+          </div>
+        </section>
+
+        <section class="section" id="step-2">
+          <div class="card">
+            <h2>Conexão com WhatsApp</h2>
+            <p class="muted">Use QR Code ou código de pareamento.</p>
+
+            <div class="row">
+              <div class="col-8">
+                <label>Webhook URL (opcional)</label>
+                <input id="webhookUrl" placeholder="https://seu-dominio.com/webhook" />
+              </div>
+              <div class="col-4">
+                <label>Eventos</label>
+                <select id="subscribeSelect">
+                  <option value="ALL">ALL</option>
+                  <option value="MESSAGE">MESSAGE</option>
+                  <option value="CONNECTION">CONNECTION</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button id="connectBtn" class="btn-brand">Conectar instância</button>
+              <button id="getQrBtn">Buscar QR Code</button>
+            </div>
+
+            <div class="row" style="margin-top:14px">
+              <div class="col-6">
+                <label>Telefone para pareamento</label>
+                <input id="pairPhone" placeholder="5511999999999" />
+              </div>
+              <div class="col-6">
+                <label>&nbsp;</label>
+                <button id="pairBtn" class="btn-blue">Gerar código de pareamento</button>
+              </div>
+            </div>
+
+            <div id="pairResult" class="preview" style="margin-top:14px">Nenhum código gerado.</div>
+          </div>
+        </section>
+
+        <section class="section" id="step-3">
+          <div class="card">
+            <h2>Contatos</h2>
+
+            <div class="row">
+              <div class="col-12">
+                <label>Importar Excel/CSV</label>
+                <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-4">
+                <label>Coluna Nome</label>
+                <select id="mapName"></select>
+              </div>
+              <div class="col-4">
+                <label>Coluna Número</label>
+                <select id="mapNumber"></select>
+              </div>
+              <div class="col-4">
+                <label>&nbsp;</label>
+                <button id="applyImportBtn" class="btn-brand">Aplicar importação</button>
+              </div>
+            </div>
+
+            <hr style="border-color:#1e293b;opacity:.35;margin:18px 0" />
+
+            <div class="row">
+              <div class="col-6">
+                <label>Nome</label>
+                <input id="manualName" placeholder="Nome do contato" />
+              </div>
+              <div class="col-6">
+                <label>Número</label>
+                <input id="manualNumber" placeholder="5511999999999" />
+              </div>
+            </div>
+
+            <div class="btn-row">
+              <button id="addManualBtn">Adicionar manualmente</button>
+              <button id="clearContactsBtn" class="btn-danger">Limpar contatos</button>
+              <button id="goStep4Btn" class="btn-brand">Avançar para mensagem</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Prévia dos contatos</h3>
+            <div class="table-wrap">
+              <table id="contactsTable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Nome</th>
+                    <th>Número</th>
+                    <th>Variáveis</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="step-4">
+          <div class="card">
+            <h2>Mensagem</h2>
+            <div class="row">
+              <div class="col-12">
+                <label>Texto da mensagem</label>
+                <textarea id="messageText" placeholder="Exemplo: Olá {primeiro_nome}, tudo bem?"></textarea>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-4">
+                <label>Delay mínimo (ms)</label>
+                <input id="minDelay" type="number" value="5000" />
+              </div>
+              <div class="col-4">
+                <label>Delay máximo (ms)</label>
+                <input id="maxDelay" type="number" value="12000" />
+              </div>
+              <div class="col-4">
+                <label>Código do país padrão</label>
+                <input id="defaultCountryCode" value="55" />
+              </div>
+            </div>
+
+            <div>
+              <label>Variáveis disponíveis</label>
+              <div id="variableChips" class="chips"></div>
+            </div>
+
+            <div class="btn-row" style="margin-top:14px">
+              <button id="testSendBtn" class="btn-blue">Enviar mensagem teste</button>
+              <button id="goStep5Btn" class="btn-brand">Avançar para disparo</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Prévia da mensagem</h3>
+            <div id="messagePreview" class="preview">A prévia aparecerá aqui.</div>
+          </div>
+        </section>
+
+        <section class="section" id="step-5">
+          <div class="card">
+            <h2>Disparo</h2>
+            <div class="btn-row">
+              <button id="startJobBtn" class="btn-brand">Iniciar disparo</button>
+              <button id="cancelJobBtn" class="btn-danger">Cancelar disparo</button>
+            </div>
+
+            <div style="margin-top:18px">
+              <div class="progress">
+                <div id="progressBar" class="bar"></div>
+              </div>
+              <div id="progressText" class="small" style="margin-top:8px">Aguardando início.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Logs</h3>
+            <div id="jobLogs" class="log"></div>
+          </div>
+        </section>
+      </div>
+
+      <div>
+        <div class="card">
+          <h3>Resumo</h3>
+          <div id="summary" class="preview"></div>
+        </div>
+
+        <div class="card">
+          <h3>Status da instância</h3>
+          <div id="instanceStatus" class="status bad">
+            <span class="dot"></span>
+            <span>Não validado</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>QR Code</h3>
+          <div id="qrBox" class="preview">O QR Code aparecerá aqui.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      step: 1,
+      instances: [],
+      contacts: [],
+      importedRows: [],
+      importedHeaders: [],
+      currentJobId: null,
+      jobPolling: null
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    async function api(url, options = {}) {
+      const res = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.message || "Falha na requisição");
+      }
+      return data;
+    }
+
+    function slugKey(value = "") {
+      return String(value)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    }
+
+    function onlyDigits(value = "") {
+      return String(value).replace(/\D/g, "");
+    }
+
+    function currentInstanceName() {
+      return $("instanceSelect").value || "";
+    }
+
+    function currentToken() {
+      return $("instanceToken").value.trim();
+    }
+
+    function saveTokenLocal() {
+      const name = currentInstanceName();
+      const token = currentToken();
+      if (!name || !token) return;
+      localStorage.setItem(`token:${name}`, token);
+    }
+
+    function loadSavedToken() {
+      const name = currentInstanceName();
+      const saved = localStorage.getItem(`token:${name}`) || "";
+      $("instanceToken").value = saved;
+    }
+
+    function setApiBadge(ok, text) {
+      $("apiDot").className = `dot ${ok ? "ok" : ""}`;
+      $("apiStatus").textContent = text;
+    }
+
+    function toast(text) {
+      alert(text);
+    }
+
+    function gotoStep(step) {
+      state.step = step;
+      document.querySelectorAll(".step").forEach(el => {
+        el.classList.toggle("active", Number(el.dataset.step) === step);
+      });
+      document.querySelectorAll(".section").forEach(el => {
+        el.classList.remove("active");
+      });
+      $(`step-${step}`).classList.add("active");
+      renderSummary();
+    }
+
+    function renderSummary() {
+      const selected = state.instances.find(i => i.name === currentInstanceName());
+      const lines = [
+        `Instância: ${selected?.name || "-"}`,
+        `Contatos: ${state.contacts.length}`,
+        `Token salvo: ${currentToken() ? "sim" : "não"}`,
+        `Delay: ${$("minDelay")?.value || "-"} a ${$("maxDelay")?.value || "-"} ms`,
+        `Mensagem preenchida: ${$("messageText")?.value?.trim() ? "sim" : "não"}`
+      ];
+      $("summary").textContent = lines.join("\n");
+    }
+
+    function setInstanceStatus(ok, text) {
+      $("instanceStatus").className = `status ${ok ? "ok" : "bad"}`;
+      $("instanceStatus").innerHTML = `<span class="dot ${ok ? "ok" : ""}"></span><span>${text}</span>`;
+    }
+
+    function buildVariableList() {
+      const base = new Set(["nome", "primeiro_nome", "numero"]);
+      state.contacts.forEach(contact => {
+        Object.keys(contact.vars || {}).forEach(k => base.add(slugKey(k)));
+      });
+      return Array.from(base);
+    }
+
+    function insertAtCursor(el, text) {
+      const start = el.selectionStart ?? el.value.length;
+      const end = el.selectionEnd ?? el.value.length;
+      el.value = el.value.slice(0, start) + text + el.value.slice(end);
+      el.focus();
+      el.selectionStart = el.selectionEnd = start + text.length;
+      renderMessagePreview();
+      renderSummary();
+    }
+
+    function renderVariableChips() {
+      const vars = buildVariableList();
+      $("variableChips").innerHTML = "";
+      vars.forEach(v => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "chip";
+        chip.textContent = `{${v}}`;
+        chip.onclick = () => insertAtCursor($("messageText"), `{${v}}`);
+        $("variableChips").appendChild(chip);
+      });
+    }
+
+    function renderContactsTable() {
+      const tbody = $("contactsTable").querySelector("tbody");
+      tbody.innerHTML = "";
+
+      state.contacts.forEach((c, idx) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td>${c.name || ""}</td>
+          <td>${c.number || ""}</td>
+          <td>${Object.entries(c.vars || {}).map(([k,v]) => `${k}: ${v}`).join("<br>")}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      renderVariableChips();
+      renderMessagePreview();
+      renderSummary();
+    }
+
+    function renderMessagePreview() {
+      const template = $("messageText").value || "";
+      const first = state.contacts[0];
+      if (!template) {
+        $("messagePreview").textContent = "Digite a mensagem para ver a prévia.";
+        return;
+      }
+      if (!first) {
+        $("messagePreview").textContent = template;
+        return;
+      }
+
+      const vars = {
+        ...(first.vars || {}),
+        nome: first.vars?.nome || first.name || "",
+        numero: first.number || ""
+      };
+      vars.primeiro_nome = vars.nome ? vars.nome.split(/\s+/)[0] : "";
+
+      const out = template.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key) => vars[key] ?? "");
+      $("messagePreview").textContent = out;
+      renderSummary();
+    }
+
+    function populateInstanceSelect() {
+      const select = $("instanceSelect");
+      const current = select.value;
+      select.innerHTML = `<option value="">Selecione uma instância</option>`;
+      state.instances.forEach(item => {
+        const opt = document.createElement("option");
+        opt.value = item.name;
+        opt.textContent = `${item.name} ${item.connected ? "• conectado" : "• desconectado"}`;
+        select.appendChild(opt);
+      });
+      if (state.instances.some(x => x.name === current)) {
+        select.value = current;
+      }
+      renderSummary();
+    }
+
+    async function loadInstances() {
+      const data = await api("/api/instances");
+      state.instances = data.instances || [];
+      populateInstanceSelect();
+      toast("Instâncias carregadas.");
+    }
+
+    async function checkHealth() {
+      try {
+        await api("/api/health");
+        setApiBadge(true, "API local online");
+      } catch {
+        setApiBadge(false, "API local offline");
+      }
+    }
+
+    async function validateToken() {
+      const token = currentToken();
+      if (!token) return toast("Informe o token da instância.");
+
+      const data = await api("/api/instance/status", {
+        method: "POST",
+        body: JSON.stringify({ token })
+      });
+
+      const connected =
+        data?.data?.data?.Connected === true ||
+        data?.data?.Connected === true;
+
+      setInstanceStatus(connected, connected ? "Conectado" : "Token válido, porém desconectado");
+      renderSummary();
+    }
+
+    async function createInstance() {
+      const name = $("newInstanceName").value.trim();
+      const token = $("newInstanceToken").value.trim();
+
+      if (!name) return toast("Informe o nome da instância.");
+
+      await api("/api/instances", {
+        method: "POST",
+        body: JSON.stringify({ name, token })
+      });
+
+      await loadInstances();
+      $("instanceSelect").value = name;
+      if (token) {
+        $("instanceToken").value = token;
+        saveTokenLocal();
+      }
+      toast("Instância criada.");
+    }
+
+    async function connectInstance() {
+      const token = currentToken();
+      if (!token) return toast("Informe o token da instância.");
+
+      const webhookUrl = $("webhookUrl").value.trim();
+      const subscribe = [$("subscribeSelect").value];
+
+      await api("/api/instance/connect", {
+        method: "POST",
+        body: JSON.stringify({
+          token,
+          webhookUrl,
+          subscribe,
+          immediate: false
+        })
+      });
+
+      toast("Solicitação de conexão enviada.");
+    }
+
+    async function getQr() {
+      const token = currentToken();
+      if (!token) return toast("Informe o token da instância.");
+
+      const data = await api("/api/instance/qr", {
+        method: "POST",
+        body: JSON.stringify({ token })
+      });
+
+      const qr = data?.data?.data?.Qrcode || data?.data?.Qrcode;
+      if (!qr) {
+        $("qrBox").textContent = "QR Code não retornado.";
+        return;
+      }
+
+      $("qrBox").innerHTML = `<img class="qr" src="${qr}" alt="QR Code" />`;
+    }
+
+    async function pairInstance() {
+      const token = currentToken();
+      const phone = $("pairPhone").value.trim();
+      if (!token) return toast("Informe o token da instância.");
+      if (!phone) return toast("Informe o telefone para pareamento.");
+
+      const data = await api("/api/instance/pair", {
+        method: "POST",
+        body: JSON.stringify({
+          token,
+          phone,
+          subscribe: [$("subscribeSelect").value]
+        })
+      });
+
+      const code = data?.data?.data?.PairingCode || data?.data?.PairingCode || "Código não retornado";
+      $("pairResult").textContent = `Código de pareamento: ${code}`;
+    }
+
+    function populateHeaderMaps(headers = []) {
+      const nameSelect = $("mapName");
+      const numberSelect = $("mapNumber");
+      const opts = headers.map(h => `<option value="${h}">${h}</option>`).join("");
+
+      nameSelect.innerHTML = `<option value="">Selecione</option>${opts}`;
+      numberSelect.innerHTML = `<option value="">Selecione</option>${opts}`;
+
+      const guessName = headers.find(h => ["nome", "name"].includes(slugKey(h)));
+      const guessNumber = headers.find(h => ["numero", "telefone", "celular", "whatsapp", "phone"].includes(slugKey(h)));
+
+      if (guessName) nameSelect.value = guessName;
+      if (guessNumber) numberSelect.value = guessNumber;
+    }
+
+    function parseSheetRows(rows) {
+      state.importedRows = rows;
+      const first = rows[0] || {};
+      const headers = Object.keys(first);
+      state.importedHeaders = headers;
+      populateHeaderMaps(headers);
+    }
+
+    async function handleFile(file) {
+      const data = await file.arrayBuffer();
+      const wb = XLSX.read(data, { type: "array" });
+      const sheetName = wb.SheetNames[0];
+      const sheet = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+      if (!rows.length) return toast("Nenhuma linha encontrada no arquivo.");
+      parseSheetRows(rows);
+      toast(`Arquivo lido com ${rows.length} linha(s).`);
+    }
+
+    function applyImport() {
+      if (!state.importedRows.length) return toast("Importe uma planilha primeiro.");
+
+      const nameCol = $("mapName").value;
+      const numberCol = $("mapNumber").value;
+
+      if (!numberCol) return toast("Selecione a coluna de número.");
+
+      const newContacts = state.importedRows.map(row => {
+        const vars = {};
+        Object.entries(row).forEach(([k,v]) => {
+          vars[slugKey(k)] = String(v ?? "").trim();
+        });
+
+        return {
+          name: nameCol ? String(row[nameCol] ?? "").trim() : "",
+          number: String(row[numberCol] ?? "").trim(),
+          vars
+        };
+      });
+
+      state.contacts = [...state.contacts, ...newContacts];
+      renderContactsTable();
+      toast("Contatos importados para a lista.");
+    }
+
+    function addManualContact() {
+      const name = $("manualName").value.trim();
+      const number = $("manualNumber").value.trim();
+      if (!number) return toast("Informe o número.");
+
+      state.contacts.push({
+        name,
+        number,
+        vars: {
+          nome: name,
+          numero: number
+        }
+      });
+
+      $("manualName").value = "";
+      $("manualNumber").value = "";
+      renderContactsTable();
+    }
+
+    function clearContacts() {
+      state.contacts = [];
+      renderContactsTable();
+    }
+
+    async function sendTest() {
+      const token = currentToken();
+      const text = $("messagePreview").textContent.trim();
+      const first = state.contacts[0];
+      const number = first?.number || prompt("Digite o número de teste:");
+      if (!token) return toast("Informe o token.");
+      if (!text) return toast("Mensagem vazia.");
+      if (!number) return;
+
+      await api("/api/send/test", {
+        method: "POST",
+        body: JSON.stringify({
+          token,
+          number,
+          text,
+          delay: 0,
+          defaultCountryCode: $("defaultCountryCode").value.trim() || "55"
+        })
+      });
+
+      toast("Mensagem teste enviada.");
+    }
+
+    function setJobProgress(job) {
+      const total = job?.total || 0;
+      const done = (job?.sent || 0) + (job?.failed || 0);
+      const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+      $("progressBar").style.width = `${pct}%`;
+      $("progressText").textContent = `Status: ${job.status} | Enviadas: ${job.sent} | Falhas: ${job.failed} | Total: ${job.total}`;
+      $("jobLogs").textContent = (job.logs || []).join("\n");
+    }
+
+    async function pollJob() {
+      if (!state.currentJobId) return;
+      const data = await api(`/api/jobs/${state.currentJobId}`);
+      const job = data.job;
+      setJobProgress(job);
+
+      if (["completed", "failed", "canceled"].includes(job.status)) {
+        clearInterval(state.jobPolling);
+        state.jobPolling = null;
+      }
+    }
+
+    async function startJob() {
+      const token = currentToken();
+      const message = $("messageText").value.trim();
+      if (!token) return toast("Informe o token.");
+      if (!state.contacts.length) return toast("Adicione pelo menos um contato.");
+      if (!message) return toast("Digite a mensagem.");
+
+      const data = await api("/api/jobs", {
+        method: "POST",
+        body: JSON.stringify({
+          token,
+          message,
+          contacts: state.contacts,
+          minDelayMs: Number($("minDelay").value || 5000),
+          maxDelayMs: Number($("maxDelay").value || 12000),
+          defaultCountryCode: $("defaultCountryCode").value.trim() || "55"
+        })
+      });
+
+      state.currentJobId = data.job.id;
+      setJobProgress(data.job);
+
+      if (data.invalid?.length) {
+        console.warn("Contatos inválidos:", data.invalid);
+      }
+
+      if (state.jobPolling) clearInterval(state.jobPolling);
+      state.jobPolling = setInterval(() => {
+        pollJob().catch(console.error);
+      }, 2000);
+
+      gotoStep(5);
+    }
+
+    async function cancelJob() {
+      if (!state.currentJobId) return toast("Nenhum job em execução.");
+      await api(`/api/jobs/${state.currentJobId}/cancel`, {
+        method: "POST"
+      });
+      toast("Cancelamento solicitado.");
+    }
+
+    document.querySelectorAll(".step").forEach(el => {
+      el.addEventListener("click", () => gotoStep(Number(el.dataset.step)));
+    });
+
+    $("loadInstancesBtn").onclick = () => loadInstances().catch(err => toast(err.message));
+    $("saveTokenBtn").onclick = () => { saveTokenLocal(); toast("Token salvo."); };
+    $("checkStatusBtn").onclick = () => validateToken().catch(err => toast(err.message));
+    $("goStep2Btn").onclick = () => gotoStep(2);
+    $("createInstanceBtn").onclick = () => createInstance().catch(err => toast(err.message));
+    $("connectBtn").onclick = () => connectInstance().catch(err => toast(err.message));
+    $("getQrBtn").onclick = () => getQr().catch(err => toast(err.message));
+    $("pairBtn").onclick = () => pairInstance().catch(err => toast(err.message));
+    $("applyImportBtn").onclick = applyImport;
+    $("addManualBtn").onclick = addManualContact;
+    $("clearContactsBtn").onclick = clearContacts;
+    $("goStep4Btn").onclick = () => gotoStep(4);
+    $("testSendBtn").onclick = () => sendTest().catch(err => toast(err.message));
+    $("goStep5Btn").onclick = () => gotoStep(5);
+    $("startJobBtn").onclick = () => startJob().catch(err => toast(err.message));
+    $("cancelJobBtn").onclick = () => cancelJob().catch(err => toast(err.message));
+    $("messageText").addEventListener("input", renderMessagePreview);
+
+    $("instanceSelect").addEventListener("change", () => {
+      loadSavedToken();
+      renderSummary();
+    });
+
+    $("fileInput").addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        await handleFile(file);
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+
+    checkHealth();
+    renderContactsTable();
+    renderVariableChips();
+    renderSummary();
+  </script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+version: "3.8"
+
+services:
+  evo_postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: "${POSTGRES_DATABASE}"
+      POSTGRES_USER: "${POSTGRES_USERNAME}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+    volumes:
+      - evocrm_pg_data:/var/lib/postgresql/data
+    networks:
+      evocrm_internal:
+        aliases:
+          - evo_postgres
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evo_redis:
+    image: redis:7-alpine
+    command: sh -c "redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}"
+    volumes:
+      - evocrm_redis_data:/data
+    networks:
+      evocrm_internal:
+        aliases:
+          - evo_redis
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evo_gateway:
+    image: evoapicloud/evo-crm-gateway:${IMAGE_TAG}
+    environment:
+      AUTH_UPSTREAM: "evo_auth:3001"
+      CRM_UPSTREAM: "evo_crm:3000"
+      CORE_UPSTREAM: "evo_core:5555"
+      PROCESSOR_UPSTREAM: "evo_processor:8000"
+      BOT_RUNTIME_UPSTREAM: "evo_bot_runtime:8080"
+    networks:
+      - public
+      - evocrm_internal
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=${TRAEFIK_NETWORK}
+        - traefik.http.routers.evocrm-api.rule=Host(`${API_DOMAIN}`)
+        - traefik.http.routers.evocrm-api.entrypoints=${TRAEFIK_ENTRYPOINT}
+        - traefik.http.routers.evocrm-api.middlewares=evocrm-api-fix
+        - traefik.http.middlewares.evocrm-api-fix.replacepathregex.regex=^/api/v1/api/v1/(.*)
+        - traefik.http.middlewares.evocrm-api-fix.replacepathregex.replacement=/api/v1/$$1
+        - traefik.http.services.evocrm-api.loadbalancer.server.port=3030
+
+  evo_auth:
+    image: evoapicloud/evo-auth-service-community:${IMAGE_TAG}
+    command: >
+      sh -c "bundle exec rails db:migrate 2>&1 || true; bundle exec rails s -p 3001 -b 0.0.0.0"
+    environment:
+      RAILS_ENV: "production"
+      RAILS_MAX_THREADS: "5"
+      SECRET_KEY_BASE: "${SECRET_KEY_BASE}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      EVOAI_CRM_API_TOKEN: "${EVOAI_CRM_API_TOKEN}"
+      POSTGRES_HOST: "evo_postgres"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
+      POSTGRES_USERNAME: "${POSTGRES_USERNAME}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
+      POSTGRES_SSLMODE: "${POSTGRES_SSLMODE}"
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@evo_redis:${REDIS_PORT}/0"
+      FRONTEND_URL: "https://${FRONTEND_DOMAIN}"
+      BACKEND_URL: "https://${API_DOMAIN}"
+      CORS_ORIGINS: "https://${FRONTEND_DOMAIN},https://${API_DOMAIN}"
+      MAILER_SENDER_EMAIL: "${MAILER_SENDER_EMAIL}"
+      SMTP_ADDRESS: "${SMTP_ADDRESS}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_DOMAIN: "${SMTP_DOMAIN}"
+      SMTP_AUTHENTICATION: "${SMTP_AUTHENTICATION}"
+      SMTP_ENABLE_STARTTLS_AUTO: "${SMTP_ENABLE_STARTTLS_AUTO}"
+      SMTP_USERNAME: "${SMTP_USERNAME}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      SMTP_OPENSSL_VERIFY_MODE: "${SMTP_OPENSSL_VERIFY_MODE}"
+      DOORKEEPER_JWT_SECRET_KEY: "${DOORKEEPER_JWT_SECRET_KEY}"
+      DOORKEEPER_JWT_ALGORITHM: "hs256"
+      DOORKEEPER_JWT_ISS: "evo-auth-service"
+      MFA_ISSUER: "${MFA_ISSUER}"
+      SIDEKIQ_CONCURRENCY: "10"
+      ACTIVE_STORAGE_SERVICE: "local"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
+      EVOLUTION_OPERATOR_EMAIL: "${EVOLUTION_OPERATOR_EMAIL}"
+    networks:
+      evocrm_internal:
+        aliases:
+          - evo_auth
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evo_auth_sidekiq:
+    image: evoapicloud/evo-auth-service-community:${IMAGE_TAG}
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    healthcheck:
+      disable: true
+    environment:
+      RAILS_ENV: "production"
+      SERVICE_ROLE: "sidekiq"
+      DISABLE_HEALTHCHECK: "true"
+      SECRET_KEY_BASE: "${SECRET_KEY_BASE}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      EVOAI_CRM_API_TOKEN: "${EVOAI_CRM_API_TOKEN}"
+      POSTGRES_HOST: "evo_postgres"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
+      POSTGRES_USERNAME: "${POSTGRES_USERNAME}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
+      POSTGRES_SSLMODE: "${POSTGRES_SSLMODE}"
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@evo_redis:${REDIS_PORT}/0"
+      CORS_ORIGINS: "https://${FRONTEND_DOMAIN},https://${API_DOMAIN}"
+      MAILER_SENDER_EMAIL: "${MAILER_SENDER_EMAIL}"
+      SMTP_ADDRESS: "${SMTP_ADDRESS}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_DOMAIN: "${SMTP_DOMAIN}"
+      SMTP_AUTHENTICATION: "${SMTP_AUTHENTICATION}"
+      SMTP_ENABLE_STARTTLS_AUTO: "${SMTP_ENABLE_STARTTLS_AUTO}"
+      SMTP_USERNAME: "${SMTP_USERNAME}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      SMTP_OPENSSL_VERIFY_MODE: "${SMTP_OPENSSL_VERIFY_MODE}"
+      DOORKEEPER_JWT_SECRET_KEY: "${DOORKEEPER_JWT_SECRET_KEY}"
+      DOORKEEPER_JWT_ALGORITHM: "hs256"
+      DOORKEEPER_JWT_ISS: "evo-auth-service"
+      MFA_ISSUER: "${MFA_ISSUER}"
+      SIDEKIQ_CONCURRENCY: "10"
+      ACTIVE_STORAGE_SERVICE: "local"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
+      EVOLUTION_OPERATOR_EMAIL: "${EVOLUTION_OPERATOR_EMAIL}"
+    networks:
+      evocrm_internal:
+        aliases:
+          - evo_auth_sidekiq
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evo_crm:
+    image: evoapicloud/evo-ai-crm-community:${IMAGE_TAG}
+    command: >
+      sh -c "until wget -qO- http://evo_auth:3001/health >/dev/null 2>&1; do sleep 5; done; bundle exec rails db:migrate 2>&1 || true; bundle exec rails s -p 3000 -b 0.0.0.0"
+    environment:
+      RAILS_ENV: "production"
+      RAILS_SERVE_STATIC_FILES: "true"
+      RAILS_LOG_TO_STDOUT: "true"
+      SECRET_KEY_BASE: "${SECRET_KEY_BASE}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      EVOAI_CRM_API_TOKEN: "${EVOAI_CRM_API_TOKEN}"
+      POSTGRES_HOST: "evo_postgres"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
+      POSTGRES_USERNAME: "${POSTGRES_USERNAME}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
+      POSTGRES_SSLMODE: "${POSTGRES_SSLMODE}"
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@evo_redis:${REDIS_PORT}/0"
+      EVO_AUTH_SERVICE_URL: "http://evo_auth:3001"
+      EVO_AI_CORE_SERVICE_URL: "http://evo_core:5555"
+      BACKEND_URL: "https://${API_DOMAIN}"
+      FRONTEND_URL: "https://${FRONTEND_DOMAIN}"
+      CORS_ORIGINS: "https://${FRONTEND_DOMAIN},https://${API_DOMAIN}"
+      DISABLE_TELEMETRY: "true"
+      ENABLE_ACCOUNT_SIGNUP: "true"
+      ENABLE_PUSH_RELAY_SERVER: "true"
+      ENABLE_INBOX_EVENTS: "true"
+      BOT_RUNTIME_URL: "http://evo_bot_runtime:8080"
+      BOT_RUNTIME_SECRET: "${BOT_RUNTIME_SECRET}"
+      BOT_RUNTIME_POSTBACK_BASE_URL: "http://evo_crm:3000"
+      MAILER_TYPE: "${MAILER_TYPE}"
+      MAILER_SENDER_EMAIL: "${MAILER_SENDER_EMAIL}"
+      SMTP_ADDRESS: "${SMTP_ADDRESS}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_DOMAIN: "${SMTP_DOMAIN}"
+      SMTP_AUTHENTICATION: "${SMTP_AUTHENTICATION}"
+      SMTP_ENABLE_STARTTLS_AUTO: "${SMTP_ENABLE_STARTTLS_AUTO}"
+      SMTP_USERNAME: "${SMTP_USERNAME}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      SMTP_OPENSSL_VERIFY_MODE: "${SMTP_OPENSSL_VERIFY_MODE}"
+    networks:
+      evocrm_internal:
+        aliases:
+          - evo_crm
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evo_crm_sidekiq:
+    image: evoapicloud/evo-ai-crm-community:${IMAGE_TAG}
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    healthcheck:
+      disable: true
+    environment:
+      RAILS_ENV: "production"
+      SECRET_KEY_BASE: "${SECRET_KEY_BASE}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      EVOAI_CRM_API_TOKEN: "${EVOAI_CRM_API_TOKEN}"
+      POSTGRES_HOST: "evo_postgres"
+      POSTGRES_PORT: "${POSTGRES_PORT}"
+      POSTGRES_USERNAME: "${POSTGRES_USERNAME}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
+      POSTGRES_SSLMODE: "${POSTGRES_SSLMODE}"
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@evo_redis:${REDIS_PORT}/0"
+      EVO_AUTH_SERVICE_URL: "http://evo_auth:3001"
+      EVO_AI_CORE_SERVICE_URL: "http://evo_core:5555"
+      FRONTEND_URL: "https://${FRONTEND_DOMAIN}"
+      BACKEND_URL: "https://${API_DOMAIN}"
+      CORS_ORIGINS: "https://${FRONTEND_DOMAIN},https://${API_DOMAIN}"
+      BOT_RUNTIME_URL: "http://evo_bot_runtime:8080"
+      BOT_RUNTIME_SECRET: "${BOT_RUNTIME_SECRET}"
+      BOT_RUNTIME_POSTBACK_BASE_URL: "http://evo_crm:3000"
+      MAILER_TYPE: "${MAILER_TYPE}"
+      MAILER_SENDER_EMAIL: "${MAILER_SENDER_EMAIL}"
+      SMTP_ADDRESS: "${SMTP_ADDRESS}"
+      SMTP_PORT: "${SMTP_PORT}"
+      SMTP_DOMAIN: "${SMTP_DOMAIN}"
+      SMTP_AUTHENTICATION: "${SMTP_AUTHENTICATION}"
+      SMTP_ENABLE_STARTTLS_AUTO: "${SMTP_ENABLE_STARTTLS_AUTO}"
+      SMTP_USERNAME: "${SMTP_USERNAME}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
+      SMTP_OPENSSL_VERIFY_MODE: "${SMTP_OPENSSL_VERIFY_MODE}"
+    networks:
+      evocrm_internal:
+        aliases:
+          - evo_crm_sidekiq
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evo_core:
+    image: evoapicloud/evo-ai-core-service-community:${IMAGE_TAG}
+    environment:
+      DB_HOST: "evo_postgres"
+      DB_PORT: "${POSTGRES_PORT}"
+      DB_USER: "${POSTGRES_USERNAME}"
+      DB_PASSWORD: "${POSTGRES_PASSWORD}"
+      DB_NAME: "${POSTGRES_DATABASE}"
+      DB_SSLMODE: "${POSTGRES_SSLMODE}"
+      PORT: "5555"
+      SECRET_KEY_BASE: "${SECRET_KEY_BASE}"
+      JWT_SECRET_KEY: "${JWT_SECRET_KEY}"
+      JWT_ALGORITHM: "HS256"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
+      EVOLUTION_BASE_URL: "http://evo_crm:3000"
+      EVO_AUTH_BASE_URL: "http://evo_auth:3001"
+      AI_PROCESSOR_URL: "http://evo_processor:8000"
+      AI_PROCESSOR_VERSION: "v1"
+    networks:
+      evocrm_internal:
+        aliases:
+          - evo_core
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evo_processor:
+    image: evoapicloud/evo-ai-processor-community:${IMAGE_TAG}
+    command: >
+      sh -c "alembic upgrade head 2>&1 || true; python -m scripts.run_seeders; uvicorn src.main:app --host \$$HOST --port \$$PORT"
+    environment:
+      POSTGRES_CONNECTION_STRING: "postgresql://${POSTGRES_USERNAME}:${POSTGRES_PASSWORD}@evo_postgres:${POSTGRES_PORT}/${POSTGRES_DATABASE}?sslmode=${POSTGRES_SSLMODE}"
+      REDIS_HOST: "evo_redis"
+      REDIS_PORT: "${REDIS_PORT}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+      REDIS_SSL: "false"
+      REDIS_DB: "${REDIS_DB}"
+      REDIS_KEY_PREFIX: "a2a:"
+      REDIS_TTL: "3600"
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      DEBUG: "false"
+      SECRET_KEY_BASE: "${SECRET_KEY_BASE}"
+      ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
+      EVOAI_CRM_API_TOKEN: "${EVOAI_CRM_API_TOKEN}"
+      EVO_AI_CRM_URL: "http://evo_crm:3000"
+      CORE_SERVICE_URL: "http://evo_core:5555/api/v1"
+      APP_URL: "https://${API_DOMAIN}"
+      API_URL: "https://${API_DOMAIN}"
+      API_TITLE: "Agent Processor Community"
+      API_DESCRIPTION: "Agent Processor Community for Evo AI"
+      API_VERSION: "1.0.0"
+      ORGANIZATION_NAME: "Evo CRM"
+    volumes:
+      - evocrm_processor_logs:/app/logs
+    networks:
+      evocrm_internal:
+        aliases:
+          - evo_processor
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evo_bot_runtime:
+    image: evoapicloud/evo-bot-runtime:${IMAGE_TAG}
+    environment:
+      LISTEN_ADDR: "0.0.0.0:8080"
+      REDIS_URL: "redis://:${REDIS_PASSWORD}@evo_redis:${REDIS_PORT}/0"
+      AI_PROCESSOR_URL: "http://evo_processor:8000"
+      BOT_RUNTIME_SECRET: "${BOT_RUNTIME_SECRET}"
+      AI_CALL_TIMEOUT_SECONDS: "30"
+    networks:
+      evocrm_internal:
+        aliases:
+          - evo_bot_runtime
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evo_frontend:
+    image: evoapicloud/evo-ai-frontend-community:${IMAGE_TAG}
+    environment:
+      VITE_APP_ENV: "production"
+      VITE_API_URL: "https://${API_DOMAIN}"
+      VITE_AUTH_API_URL: "https://${API_DOMAIN}"
+      VITE_EVOAI_API_URL: "https://${API_DOMAIN}"
+      VITE_AGENT_PROCESSOR_URL: "https://${API_DOMAIN}"
+      VITE_WS_URL: "https://${API_DOMAIN}"
+    networks:
+      - public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=${TRAEFIK_NETWORK}
+        - traefik.http.routers.evocrm-frontend.rule=Host(`${FRONTEND_DOMAIN}`)
+        - traefik.http.routers.evocrm-frontend.entrypoints=${TRAEFIK_ENTRYPOINT}
+        - traefik.http.services.evocrm-frontend.loadbalancer.server.port=80
+
+networks:
+  public:
+    external: true
+  evocrm_internal:
+    driver: overlay
+
+volumes:
+  evocrm_pg_data:
+    name: evocrm_pg_data
+  evocrm_redis_data:
+    name: evocrm_redis_data
+  evocrm_processor_logs:
+    name: evocrm_processor_logs

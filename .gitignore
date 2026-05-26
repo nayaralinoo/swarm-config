@@ -1,0 +1,31 @@
+# variáveis e segredos
+.env
+.env.*
+*.pem
+*.key
+*.crt
+secrets/
+certs/
+ssl/
+
+# logs e temporários
+*.log
+*.tmp
+*.bak
+tmp/
+logs/
+
+# dependências e cache
+node_modules/
+__pycache__/
+.cache/
+
+# dados persistentes
+data/
+volumes/
+uploads/
+backup/
+backups/
+
+# sistema
+.DS_Store

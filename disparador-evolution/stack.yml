@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  disparador:
+    image: 127.0.0.1:5000/disparador-evolution-go:1.0.0
+    environment:
+      PORT: "3000"
+      EVOLUTION_URL: "http://evogo_evolution_go:4000"
+     # EVOLUTION_URL: "http://go.cicloia.shop"
+      GLOBAL_API_KEY_FILE: "/run/secrets/global_api_key"
+    secrets:
+      - global_api_key
+    networks:
+      - traefik-public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.http.routers.disparador.rule=Host(`disparo.cicloia.shop`)
+        - traefik.http.routers.disparador.entrypoints=web
+      #  - traefik.http.routers.disparador.tls=true
+      #  - traefik.http.routers.disparador.tls.certresolver=letsencrypt
+        - traefik.http.services.disparador.loadbalancer.server.port=3000
+
+secrets:
+  global_api_key:
+    external: true
+
+networks:
+  traefik-public:
+    external: true
+  evogo_evogo_internal:
+    external: true
+  public:
+    external: true

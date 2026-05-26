@@ -1,0 +1,103 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: EvogoPg2026A9
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - evogo_postgres_data:/var/lib/postgresql/data
+      - /opt/swarm/evogo/init:/docker-entrypoint-initdb.d
+    networks:
+      evogo_internal:
+        aliases:
+          - postgres
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --save
+      - "900"
+      - "1"
+      - --save
+      - "300"
+      - "10"
+      - --save
+      - "60"
+      - "10000"
+    volumes:
+      - evogo_redis_data:/data
+    networks:
+      evogo_internal:
+        aliases:
+          - redis
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+
+  evolution_go:
+    image: evoapicloud/evolution-go:0.7.0
+    environment:
+      SERVER_PORT: "4000"
+      CLIENT_NAME: "evolution"
+      GLOBAL_API_KEY: "2f4E4tc6s2f4E4tc6s"
+      POSTGRES_AUTH_DB: "postgresql://postgres:EvogoPg2026A9@postgres:5432/evogo_auth?sslmode=disable"
+      POSTGRES_USERS_DB: "postgresql://postgres:EvogoPg2026A9@postgres:5432/evogo_users?sslmode=disable"
+      DATABASE_SAVE_MESSAGES: "false"
+      REDIS_URL: "redis://redis:6379"
+      WADEBUG: "INFO"
+      LOGTYPE: "console"
+      LOG_DIRECTORY: "/app/logs"
+      CONNECT_ON_STARTUP: "true"
+      WEBHOOKFILES: "true"
+    volumes:
+      - evogo_app_data:/app/dbdata
+      - evogo_logs:/app/logs
+    networks:
+      - public
+      - evogo_internal
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=public
+        - traefik.http.routers.evogo.rule=Host(`go.cicloia.shop`)
+        - traefik.http.routers.evogo.entrypoints=web
+        - traefik.http.services.evogo.loadbalancer.server.port=4000
+
+volumes:
+  evogo_postgres_data:
+  evogo_redis_data:
+  evogo_app_data:
+  evogo_logs:
+
+networks:
+  public:
+    external: true
+  evogo_internal:
+    driver: overlay
